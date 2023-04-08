@@ -1,4 +1,4 @@
-use regex::{Regex, internal::Char};
+use regex::Regex;
 use time::Date;
 
 
@@ -8,8 +8,8 @@ mod regex_correctness {
 
     #[test]
     fn tickler_a20_wr() {
-let data = 
-"Ascension-20 Unseeded - 4-Character in 28m 22s by Tickler - 2nd place
+        let data = "
+Ascension-20 Unseeded - 4-Character in 28m 22s by Tickler - 2nd place
 
 Version: 2.3 03/07/2022
 Notes:
@@ -25,22 +25,80 @@ PC on 2023-01-08 ";
         let data = interpret(data).unwrap();
         assert_eq!(data, Difficulty::A20)
     }
+
+    #[test]
+    fn mayberry_seeded_wr() {
+        let data = "
+Any% Seeded - Ironclad in 1m 54s 440ms by Mayberry - Claims to be 1st place
+
+In-game time: 1m 52s
+Version: 2.3.4 12/18/2022
+Seed: UPG42
+Notes:
+
+wow
+Awaiting verification: A moderator needs to verify this run before it appears on the leaderboard.
+ 
+Submitted by:
+Mayberry on 2023-04-03, 14:59
+Played on:
+PC on 2023-04-03
+";
+        let data = interpret(data).unwrap();
+        assert_eq!(data, Difficulty::Any)
+
+    }
 }
 
 fn interpret(data: &str) -> Result<Difficulty, ParseError> {
     let data = data.replace("\n", " ");
     let prefix = Regex::new(r"(?x)
-        (Any%|Ascension-20)\s
-        (Unseeded|Seeded)\s-\s
-        (Ironclad|Silent|Defect|Watcher|4-Character)\s
-        (.*)$
+        (?P<diff>Any%|Ascension-20)\s
+        (?P<seeding>Unseeded|Seeded)\s-\s
+        (?P<character>Ironclad|Silent|Defect|Watcher|4-Character)\s
+        in\s
+        (?P<rta>\d+s|\d+m\s\d+s|\d+h\s\d+m\s\d+s)
+        (?P<rta_ms>.*)\s
+        by\s(?P<runner>.+)\s-\s
+        (?P<placing>.+)\splace\s*
+        (?P<igt>In-game\stime:\s\d+m\s\d+s|In-game\stime:\d+h\s\d+m\s\d+s)?\s*
+        Version:\s(?P<version>\d\.\d|\d\.\d\.\d)\s
+        (?P<version_date>\d{2}/\d{2}/\d{4})\s
+        \s*(?P<notes>.*)?\s*
+        Submitted\sby:\s(?P<runner2>.*)\s
+        on\s(?P<submission_date>\d{4}-\d{2}-\d{2}),\s
+        (?P<submission_time>\d{1,2}:\d{2})\s
+        Played\son:\s(?P<platform>.+)\s
+        on\s(?P<run_date>\d{4}-\d{2}-\d{2})
+        (?P<suffix>.*)$
     ").unwrap();
     let captures = prefix.captures(&data)
         .unwrap();
-    for i in 0..captures.len() {
-        println!("{:?}", captures.get(i).unwrap().as_str())
+    
+    for name in [
+        "diff",
+        "seeding",
+        "character",
+        "rta",
+        "rta_ms",
+        "runner",
+        "placing",
+        "major",
+        "igt",
+        "version_date",
+        "notes",
+        "runner2",
+        "submission_date",
+        "submission_time",
+        "platform",
+        "run_date",
+        "suffix"
+    ] {
+        if let Some(value) = captures.name(name) {
+            println!("{name} -> {:?}", value.as_str());
+        }
     }
-
+    
     let diff: Difficulty = captures.get(1)
         .unwrap()
         .as_str()
